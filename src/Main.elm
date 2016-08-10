@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Html exposing (..)
 import Html.App as Html
@@ -12,9 +12,9 @@ import Task exposing (Task)
 import Json.Decode as Decode exposing (..)
 import Json.Encode as Encode exposing (..)
 
-main : Program Never
+main : Program (Maybe Model)
 main = 
-    Html.program 
+    Html.programWithFlags
         { init = init 
         , update = update
         , subscriptions = \_ -> Sub.none
@@ -37,9 +37,14 @@ type alias Model =
     , errorMsg : String
     }
     
-init : (Model, Cmd Msg)
-init =
-    ( Model "" "" "" "" "" "", fetchRandomQuoteCmd )
+init : Maybe Model -> (Model, Cmd Msg)
+init model =
+    case model of 
+        Just model ->
+            ( model, fetchRandomQuoteCmd )
+
+        Nothing ->
+            ( Model "" "" "" "" "" "", fetchRandomQuoteCmd )    
     
 {-
     UPDATE
@@ -48,6 +53,7 @@ init =
     * Encode request body 
     * Decode responses
     * Messages
+    * Ports
     * Update case
 -}
 
@@ -93,7 +99,7 @@ userEncoder model =
         ]          
 
 -- POST register / login request
-    
+
 authUser : Model -> String -> Task Http.Error String
 authUser model apiUrl =
     { verb = "POST"
@@ -103,7 +109,7 @@ authUser model apiUrl =
     }
     |> Http.send Http.defaultSettings
     |> Http.fromJson tokenDecoder    
-    
+
 authUserCmd : Model -> String -> Cmd Msg    
 authUserCmd model apiUrl = 
     Task.perform AuthError GetTokenSuccess <| authUser model apiUrl
@@ -141,6 +147,12 @@ responseText response =
         _ ->
             ""
 
+-- Helper to update model and set localStorage with the updated model
+
+setStorageHelper : Model -> ( Model, Cmd Msg )
+setStorageHelper model = 
+    ( model, setStorage model )   
+
 -- Messages
 
 type Msg 
@@ -156,6 +168,11 @@ type Msg
     | GetProtectedQuote
     | FetchProtectedQuoteSuccess String
     | LogOut
+
+-- Ports
+
+port setStorage : Model -> Cmd msg  
+port removeStorage : Model -> Cmd msg
 
 -- Update
 
@@ -187,16 +204,16 @@ update msg model =
             ( model, authUserCmd model loginUrl ) 
 
         GetTokenSuccess newToken ->
-            ( { model | token = newToken, password = "", errorMsg = "" }, Cmd.none ) 
+            setStorageHelper { model | token = newToken, password = "", errorMsg = "" }
 
         GetProtectedQuote ->
             ( model, fetchProtectedQuoteCmd model )
 
         FetchProtectedQuoteSuccess newPQuote ->
-            ( { model | protectedQuote = newPQuote }, Cmd.none )  
+            setStorageHelper { model | protectedQuote = newPQuote }
             
         LogOut ->
-            ( { model | username = "", protectedQuote = "", token = "" }, Cmd.none )
+            ( { model | username = "", protectedQuote = "", token = "" }, removeStorage model )
                        
 {-
     VIEW
