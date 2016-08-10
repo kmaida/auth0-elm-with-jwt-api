@@ -1,7 +1,12 @@
+module Main exposing (..)
+
 import Html exposing (..)
 import Html.App as Html
 import Html.Events exposing (..)
 import Html.Attributes exposing (..)
+
+import Http
+import Task exposing (Task)
 
 main : Program Never
 main = 
@@ -16,32 +21,69 @@ main =
     MODEL
     * Model type 
     * Initialize model with empty values
+    * Initialize with a random quote
 -}
 
 type alias Model =
-    { quote : String 
+    { quote : String
     }
     
 init : (Model, Cmd Msg)
 init =
-    ( Model "", Cmd.none )
-
+    ( Model "", fetchRandomQuoteCmd )
+       
 {-
     UPDATE
+    * API routes
+    * GET
     * Messages
     * Update case
 -}
 
-type Msg = GetQuote
+-- API request URLs
+    
+api : String
+api =
+     "http://localhost:3001/"    
+    
+randomQuoteUrl : String
+randomQuoteUrl =    
+    api ++ "api/random-quote"   
+
+-- GET a random quote (unauthenticated)
+    
+fetchRandomQuote : Platform.Task Http.Error String
+fetchRandomQuote =
+    Http.getString randomQuoteUrl
+    
+fetchRandomQuoteCmd : Cmd Msg
+fetchRandomQuoteCmd =
+    Task.perform HttpError FetchQuoteSuccess fetchRandomQuote   
+
+-- Messages
+
+type Msg 
+    = GetQuote
+    | FetchQuoteSuccess String
+    | HttpError Http.Error      
+
+-- Update
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         GetQuote ->
-            ( { model | quote = model.quote ++ "A quote! " }, Cmd.none )
+            ( model, fetchRandomQuoteCmd )
+
+        FetchQuoteSuccess newQuote ->
+            ( { model | quote = newQuote }, Cmd.none )
             
+        HttpError _ ->
+            ( model, Cmd.none )  
+                       
 {-
     VIEW
+    * Get a quote
 -}
 
 view : Model -> Html Msg
