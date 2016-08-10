@@ -143,7 +143,7 @@ update msg model =
             ( model, authUserCmd model registerUrl )
 
         GetTokenSuccess newToken ->
-            ( { model | token = newToken, errorMsg = "" } |> Debug.log "got new token", Cmd.none )  
+            ( { model | token = newToken, password = "", errorMsg = "" } |> Debug.log "got new token", Cmd.none )  
                        
 {-
     VIEW
